@@ -16,9 +16,20 @@ def check_camelot(page_no, file_name):
     tables = camelot.read_pdf(file_name, pages=str(page_no))
     print(f"Camelot found {tables.n} tables on page {page_no}.")
     for i, table in enumerate(tables):
-        print(f"Table {i + 1}:\n", table.df)
-        # print the no od rows and columns
-        print(f"Table {i + 1} has {table.df.shape[0]}")
+        if i<1:
+            print(f"Table {i + 1}:\n", table.df)
+            # print the no od rows and columns
+            print(f"Table {i + 1} has {table.df.shape[0]}")
+            # only write the first table to csv
+            table.df.to_csv(f"camelot_table_{i + 1}.csv", index=False)
+            # only column 0 , next 1 and 2 ..seperately
+            for col in range(table.df.shape[1]):
+                #print
+                print(f"Column {col + 1}")
+                print(table.df.iloc[:, col])
+                print("-------------------")
+                #table.df.iloc[:, col].to_csv(f"camelot_table_{i + 1}_col_{col + 1}.csv", index=False)
+
     
 
 # def check_tabula(page_no, file_name):

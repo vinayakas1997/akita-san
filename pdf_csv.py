@@ -251,6 +251,33 @@ class PDFTableExtractor:
         """
         if not data:
             return pd.DataFrame()
+        # 1. we het the ra data as the list of lists
+        # there was error become some of the data is getting stored beyond column3
+        
+        # all elemets are the string 
+        # in each row lets merge the elemets to the col 2
+               # Step 0: Merge elements beyond column 2 into column 2
+        row_data = []
+        for row in data:
+            if len(row) > 3:
+                row[2] = ' '.join(row[2:])
+                del row[3:]  # Remove elements beyond column 2
+            row_data.append(row)
+        # print("Aftre merging the data the row data looks like \n ", row_data)   
+        
+        # first consider the row which has the first element , then second and so on has the first elemet empty , then the column 2 merge and make it as asingle row
+        ref_row = None
+        merged_data = []
+        for row in row_data:
+            if row[0] != '' and len(row) > 3:
+                if ref_row is not None:
+                    merged_data.append(ref_row)
+                ref_row[2] += ' ' + row[2]
+                ref_row = row
+            if row[0] == '' and ref_row is not None:
+                ref_row[2] += ' ' + row[2]
+        
+        data = merged_data
         
         # Convert to DataFrame
         df = pd.DataFrame(data)
@@ -398,10 +425,10 @@ class PDFTableExtractor:
                 
                 for group in type2_tables.get('table_groups', []):
                     raw_data = group.get('data', [])
-                    
+                    # print("raw data for group:-----------------\n", raw_data)
                     # Clean the data
                     cleaned_df = self.clean_type2_table_data(raw_data)
-                    
+                    # print("\nCleaned data for group:-----------------\n", cleaned_df)
                     # Update group with cleaned data
                     cleaned_group = group.copy()
                     cleaned_group['cleaned_data'] = cleaned_df
