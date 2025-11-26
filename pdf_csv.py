@@ -263,22 +263,24 @@ class PDFTableExtractor:
                 row[2] = ' '.join(row[2:])
                 del row[3:]  # Remove elements beyond column 2
             row_data.append(row)
-        # print("Aftre merging the data the row data looks like \n ", row_data)   
+        print("Aftre merging the data the row data looks like \n ", row_data)   
         
-        # first consider the row which has the first element , then second and so on has the first elemet empty , then the column 2 merge and make it as asingle row
-        ref_row = None
         merged_data = []
+
         for row in row_data:
-            if row[0] != '' and len(row) > 3:
+            if row[0] != '':  # New row starts
                 if ref_row is not None:
-                    merged_data.append(ref_row)
-                ref_row[2] += ' ' + row[2]
-                ref_row = row
-            if row[0] == '' and ref_row is not None:
-                ref_row[2] += ' ' + row[2]
-        
+                    merged_data.append(ref_row)  # Save previous complete row
+                ref_row = row.copy()  # Start new reference row
+            elif ref_row is not None:  # Continuation row
+                ref_row[2] += ' ' + row[2]  # Append to previous row's column 2
+
+        # Don't forget the last row
+        if ref_row is not None:
+            merged_data.append(ref_row)
+
         data = merged_data
-        
+        print("merged data after cleaning the rows : \n", data)
         # Convert to DataFrame
         df = pd.DataFrame(data)
         
@@ -330,12 +332,13 @@ class PDFTableExtractor:
         
         return filtered_df
     
+
     def _parse_time_and_remarks(self, text: str) -> Dict[str, str]:
         """
         Parse combined time and remarks text.
         
         Args:
-            text (str): Combined text like "08:35\n08:45\nポカヨケ\n〜"
+            text (str): Combined text like "08:35\n08:45\nポカヨケ\n〜" or "08:25 08:35 ポカヨケ 〜"
             
         Returns:
             Dict[str, str]: Parsed time and remarks
@@ -345,15 +348,21 @@ class PDFTableExtractor:
         
         if not text or text == 'nan':
             return result
-         # Remove common PDF encoding artifacts
-        text = text.replace('(cid:0)', '')  # Remove cid artifacts
-        text = text.replace('(cid:1)', '')  # Remove other cid variants
-        text = text.replace('(cid:2)', '')
-        # Remove other common PDF artifacts
-        text = re.sub(r'\(cid:\d+\)', '', text)  # Remove any (cid:number)
-
-        # 🔥 FIX: Split by actual newline character \n (not \\n)
-        parts = [part.strip() for part in text.split('\n') if part.strip() and part.strip() != '〜']
+        
+        # Remove common PDF encoding artifacts
+        text = text.replace('(cid:0)', '').replace('(cid:1)', '').replace('(cid:2)', '')
+        text = re.sub(r'\(cid:\d+\)', '', text)
+        
+        # 🔥 ENHANCED: Remove '〜' and clean
+        text = text.replace('〜', '').strip()  # Remove all '〜' and trim
+        text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+        
+        # Try splitting by newlines first
+        parts = [part.strip() for part in text.split('\n') if part.strip()]
+        
+        # If no newlines, fall back to space splitting (for merged text)
+        if len(parts) == 1:
+            parts = [part.strip() for part in text.split() if part.strip()]
         
         # Time pattern: HH:MM format
         time_pattern = r'^\d{1,2}:\d{2}$'
@@ -365,8 +374,9 @@ class PDFTableExtractor:
             if re.match(time_pattern, part):
                 times_found.append(part)
             else:
-                # It's a remark
-                remarks_parts.append(part)
+                # Skip empty or artifact parts
+                if part and part not in ['〜', '']:  # Extra filter for '〜'
+                    remarks_parts.append(part)
         
         # Assign times
         if len(times_found) >= 1:
@@ -374,9 +384,10 @@ class PDFTableExtractor:
         if len(times_found) >= 2:
             result['終了時刻'] = times_found[1]
         
-        # Combine remarks
+        # Combine and clean remarks
         if remarks_parts:
-            result['備考'] = ' '.join(remarks_parts)
+            combined_remarks = ' '.join(remarks_parts)
+            result['備考'] = re.sub(r'\s+', ' ', combined_remarks).strip()
         
         return result
 

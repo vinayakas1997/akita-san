@@ -1,6 +1,6 @@
 import pymupdf
 import camelot
-import tabula
+# import tabula
 import pandas as pd 
 
 
