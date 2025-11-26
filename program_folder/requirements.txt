@@ -1,0 +1,4 @@
+# tabula-py
+PyMuPDF
+camelot-py
+streamlit
