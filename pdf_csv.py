@@ -257,15 +257,48 @@ class PDFTableExtractor:
         # all elemets are the string 
         # in each row lets merge the elemets to the col 2
                # Step 0: Merge elements beyond column 2 into column 2
+        # row_data = []
+        # for row in data:
+        #     if len(row) > 3:
+        #         row[2] = ' '.join(row[2:])
+        #         del row[3:]  # Remove elements beyond column 2
+        #     row_data.append(row)
         row_data = []
         for row in data:
             if len(row) > 3:
-                row[2] = ' '.join(row[2:])
-                del row[3:]  # Remove elements beyond column 2
+                base = row[2]  # Original column 2 content
+                extra = ' '.join(row[3:])  # Content from columns 3 onward
+                
+                if '〜' in base:
+                    # Insert extra content right after '〜'
+                    idx = base.find('〜')
+                    row[2] = base[:idx+1] + ' ' + extra + base[idx+1:]
+                else:
+                    # No '〜', just append at the end
+                    row[2] = base + ' ' + extra
+                
+                del row[3:]  # Remove the extra columns
             row_data.append(row)
         print("Aftre merging the data the row data looks like \n ", row_data)   
         
+        # merged_data = []
+        # ref_row = None  # Initialize ref_row
+        # for row in row_data:
+        #     if row[0] != '':  # New row starts
+        #         if ref_row is not None:
+        #             merged_data.append(ref_row)  # Save previous complete row
+        #         ref_row = row.copy()  # Start new reference row
+        #     elif ref_row is not None:  # Continuation row
+        #         ref_row[2] += ' ' + row[2]  # Append to previous row's column 2
+
+        # # Don't forget the last row
+        # if ref_row is not None:
+        #     merged_data.append(ref_row)
+
+        # Merge multi-line rows
+        # Merge multi-line rows
         merged_data = []
+        ref_row = None  # Initialize ref_row
 
         for row in row_data:
             if row[0] != '':  # New row starts
@@ -273,13 +306,20 @@ class PDFTableExtractor:
                     merged_data.append(ref_row)  # Save previous complete row
                 ref_row = row.copy()  # Start new reference row
             elif ref_row is not None:  # Continuation row
-                ref_row[2] += ' ' + row[2]  # Append to previous row's column 2
+                # Find '〜' in ref_row[2] and add row[2] after it
+                if '〜' in ref_row[2]:
+                    idx = ref_row[2].find('〜')
+                    ref_row[2] = ref_row[2][:idx+1] + ' ' + row[2] + ref_row[2][idx+1:]
+                else:
+                    # If no '〜', append at the end as fallback
+                    ref_row[2] += ' ' + row[2]
 
         # Don't forget the last row
         if ref_row is not None:
             merged_data.append(ref_row)
 
         data = merged_data
+
         print("merged data after cleaning the rows : \n", data)
         # Convert to DataFrame
         df = pd.DataFrame(data)
